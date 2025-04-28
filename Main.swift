@@ -14,7 +14,7 @@ let kMinContourArea = 400.0 // Minimum contour area to be considered as a moveme
 class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
     private var gui: GuiProtocol?
     private var videoCapture: VideoCaptureProtocol?
-    private var orientation: CGImagePropertyOrientation = .up
+    private var orientation: RotateFlags? = nil
     private let device: MTLDevice
     private let ciContext: CIContext
 
@@ -46,7 +46,7 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
         let devices = getVideoDevices().map { $0.localizedName }
 
         gui?.updateVideoSources(devices)
-        gui?.updateOrientations([.up, .down, .left, .right, .upMirrored, .downMirrored, .leftMirrored, .rightMirrored].map(orientationToString))
+        gui?.updateOrientations([nil, RotateFlags.ROTATE_90_CLOCKWISE, RotateFlags.ROTATE_180, RotateFlags.ROTATE_90_COUNTERCLOCKWISE].map(orientationToString))
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -55,57 +55,55 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
     }
 
     func captureOutput(didOutput pixelBuffer: CVPixelBuffer) {
-        do {
-            CVPixelBufferLockBaseAddress(pixelBuffer, [])
-            defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
-            let formatOpencv = CvType.CV_8UC4
-            let rows = Int32(CVPixelBufferGetHeight(pixelBuffer))
-            let cols = Int32(CVPixelBufferGetWidth(pixelBuffer))
-            let step =  CVPixelBufferGetBytesPerRow(pixelBuffer)
-            let bufferAddress = CVPixelBufferGetBaseAddress(pixelBuffer)
+        CVPixelBufferLockBaseAddress(pixelBuffer, [])
+        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
+        let formatOpencv = CvType.CV_8UC4
+        let rows = Int32(CVPixelBufferGetHeight(pixelBuffer))
+        let cols = Int32(CVPixelBufferGetWidth(pixelBuffer))
+        let step =  CVPixelBufferGetBytesPerRow(pixelBuffer)
+        let bufferAddress = CVPixelBufferGetBaseAddress(pixelBuffer)
 
-            guard let bufferAddress = bufferAddress else {
-                print("Failed to get buffer address")
-                return
-            }
-            
-            let data = Data(bytes: bufferAddress, count: Int(rows) * step)
-
-            let image = Mat(rows: rows, cols: cols, type: formatOpencv, data: data, step: step)
-
-            let imageSize = getSize(from: pixelBuffer)
-
-            endFrame = getPreparedImage(image: image)
-            if startFrame == nil {
-                startFrame = endFrame
-            }
-            frameDistance += 1
-
-            if frameDistance > kMaxFrameDistance {
-                startFrame = endFrame
-                frameDistance = 0
-            }
-            
-            guard let startFrame = startFrame, let endFrame = endFrame else {
-                print("startFrame or endFrame are nil")
-                return
-            }
-            
-            let movements = getMovement(startFrame: startFrame, endFrame: endFrame)
-            
-            for movement in movements {
-                let rectangle = Imgproc.boundingRect(array: movement)
-                Imgproc.rectangle(img: image, rec: rectangle, color: Scalar(0, 255, 0), thickness: 2)
-            }
-
-            Imgproc.cvtColor(src: image, dst: image, code: .COLOR_BGRA2RGB)
-            Core.rotate(src: image, dst: image, rotateCode: .ROTATE_180)
-            
-            self.gui?.setImage(image.toNSImage())
-            self.gui?.setImageAspectRatio(imageSize.width / imageSize.height)
-        } catch {
-            print("Failed to create NSImage: \(error)")
+        guard let bufferAddress = bufferAddress else {
+            print("Failed to get buffer address")
+            return
         }
+        
+        let data = Data(bytes: bufferAddress, count: Int(rows) * step)
+
+        let image = Mat(rows: rows, cols: cols, type: formatOpencv, data: data, step: step)
+        if let orientation = orientation {
+            Core.rotate(src: image, dst: image, rotateCode: orientation)
+        }
+
+        let imageSize = getSize(from: pixelBuffer)
+
+        endFrame = getPreparedImage(image: image)
+        if startFrame == nil {
+            startFrame = endFrame
+        }
+        frameDistance += 1
+
+        if frameDistance > kMaxFrameDistance {
+            startFrame = endFrame
+            frameDistance = 0
+        }
+        
+        guard let startFrame = startFrame, let endFrame = endFrame else {
+            print("startFrame or endFrame are nil")
+            return
+        }
+        
+        let movements = getMovement(startFrame: startFrame, endFrame: endFrame)
+        
+        for movement in movements {
+            let rectangle = Imgproc.boundingRect(array: movement)
+            Imgproc.rectangle(img: image, rec: rectangle, color: Scalar(0, 255, 0), thickness: 2)
+        }
+
+        Imgproc.cvtColor(src: image, dst: image, code: .COLOR_BGRA2RGB)
+        
+        self.gui?.setImage(image.toNSImage())
+        self.gui?.setImageAspectRatio(imageSize.width / imageSize.height)
     }
     
     func videoSourceSelected(_ source: String) {
@@ -122,6 +120,9 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
 
     func orientationSelected(_ orientation: String) {
         self.orientation = stringToOrientation(orientation)
+        endFrame = nil
+        startFrame = nil
+        frameDistance = 0
     }
 
     static func main() {
@@ -135,18 +136,16 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
         app.run()
     }
 
-    private func createNSImage(from pixelBuffer: CVPixelBuffer) throws -> NSImage {
-        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-        let transformedCiImage = ciImage.oriented(orientation)
-        guard let cgImage = ciContext.createCGImage(transformedCiImage, from: transformedCiImage.extent) else {
-            throw MainError.failedToCreateCGImage
-        }
-
-        return NSImage(cgImage: cgImage, size: getSize(from: pixelBuffer))
-    }
-
     private func getSize(from pixelBuffer: CVPixelBuffer) -> CGSize {
-        return CGSize(width: CVPixelBufferGetWidth(pixelBuffer), height: CVPixelBufferGetHeight(pixelBuffer))
+        let bufferWidth = CVPixelBufferGetWidth(pixelBuffer)
+        let bufferHeight = CVPixelBufferGetHeight(pixelBuffer)
+        
+        if orientation == .ROTATE_90_CLOCKWISE || orientation == .ROTATE_90_COUNTERCLOCKWISE {
+            // if the image is rotated only 90 degrees, height becomes width and vice versa
+            return CGSize(width: bufferHeight, height: bufferWidth)
+        }
+        
+        return CGSize(width: bufferWidth, height: bufferHeight)
     }
 
     private func getVideoDevices() -> [AVCaptureDevice] {
@@ -158,31 +157,22 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
         return discoverySession.devices
     }
 
-    private func orientationToString(_ orientation: CGImagePropertyOrientation) -> String {
+    private func orientationToString(_ orientation: RotateFlags?) -> String {
         switch orientation {
-        case .up: return "Up"
-        case .down: return "Down"
-        case .left: return "Left"
-        case .right: return "Right"
-        case .upMirrored: return "Up Mirrored"
-        case .downMirrored: return "Down Mirrored"
-        case .leftMirrored: return "Left Mirrored"
-        case .rightMirrored: return "Right Mirrored"
-        @unknown default: return "Unknown"
+        case .ROTATE_90_CLOCKWISE: return "Right"
+        case .ROTATE_180: return "Down"
+        case .ROTATE_90_COUNTERCLOCKWISE: return "Left"
+        default: return "Up"
         }
     }
 
-    private func stringToOrientation(_ string: String) -> CGImagePropertyOrientation {
+    private func stringToOrientation(_ string: String) -> RotateFlags? {
         switch string {
-        case "Up": return .up
-        case "Down": return .down
-        case "Left": return .left
-        case "Right": return .right
-        case "Up Mirrored": return .upMirrored
-        case "Down Mirrored": return .downMirrored
-        case "Left Mirrored": return .leftMirrored
-        case "Right Mirrored": return .rightMirrored
-        default: return .up
+        case "Up": return nil
+        case "Down": return .ROTATE_180
+        case "Left": return .ROTATE_90_COUNTERCLOCKWISE
+        case "Right": return .ROTATE_90_CLOCKWISE
+        default: return nil
         }
     }
     private func getPreparedImage(image: Mat) -> Mat {
