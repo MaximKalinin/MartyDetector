@@ -92,19 +92,8 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
         } else {
             recordingFramesLeft = max(0, recordingFramesLeft - 1)
         }
-        
-        if recordingFramesLeft > 0 {
-            Imgproc.putText(img: image, text: "Recording: \(recordingFramesLeft)", org: Point2i(x: 10, y: 35), fontFace: .FONT_HERSHEY_SIMPLEX, fontScale: 0.75, color: Scalar(255, 255, 255))
-        }
-        
-        for movement in movements {
-            let rectangle = Imgproc.boundingRect(array: movement)
-            Imgproc.rectangle(img: image, rec: rectangle, color: Scalar(0, 255, 0), thickness: 2)
-        }
 
-        Imgproc.cvtColor(src: image, dst: image, code: .COLOR_BGRA2RGB)
-        
-        self.gui?.setImage(image.toNSImage())
+        render(image: image, recordingFramesLeft: recordingFramesLeft, movements: movements)
         self.gui?.setImageAspectRatio(imageSize.width / imageSize.height)
     }
     
@@ -202,5 +191,20 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
             }
         }
         return filteredContours
+    }
+    
+    private func render(image: Mat, recordingFramesLeft: Int, movements: [Mat]) {
+        Imgproc.cvtColor(src: image, dst: image, code: .COLOR_BGRA2RGB)
+
+        if recordingFramesLeft > 0 {
+            Imgproc.putText(img: image, text: "Recording: \(recordingFramesLeft)", org: Point2i(x: 10, y: 35), fontFace: .FONT_HERSHEY_SIMPLEX, fontScale: 0.75, color: Scalar(255, 255, 255))
+        }
+        
+        for movement in movements {
+            let rectangle = Imgproc.boundingRect(array: movement)
+            Imgproc.rectangle(img: image, rec: rectangle, color: Scalar(0, 255, 0), thickness: 2)
+        }
+        
+        self.gui?.setImage(image.toNSImage())
     }
 }
