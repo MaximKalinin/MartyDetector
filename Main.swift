@@ -16,21 +16,11 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
     private var gui: GuiProtocol?
     private var videoCapture: VideoCaptureProtocol?
     private var orientation: RotateFlags? = nil
-    private let device: MTLDevice
-    private let ciContext: CIContext
 
     private var startFrame: Mat?
     private var endFrame: Mat?
     private var frameDistance: Int = 0
     private var recordingFramesLeft: Int = 0
-    
-    override init() {
-        device = MTLCreateSystemDefaultDevice()!
-        // Using metal to speed up image creation
-        ciContext = CIContext(mtlDevice: device)
-
-        super.init()
-    }
     
     func setGui(_ gui: GuiProtocol) {
         self.gui = gui
