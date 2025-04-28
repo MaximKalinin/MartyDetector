@@ -8,6 +8,7 @@ enum MainError: Error {
 
 let kMaxFrameDistance = 10 // Max frames distance between start and end frame
 let kMinContourArea = 400.0 // Minimum contour area to be considered as a movement
+let kRecordingTimeout = 100 // no. of frame count down before saving the video
 
 @main
 @MainActor
@@ -21,6 +22,7 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
     private var startFrame: Mat?
     private var endFrame: Mat?
     private var frameDistance: Int = 0
+    private var recordingFramesLeft: Int = 0
     
     override init() {
         device = MTLCreateSystemDefaultDevice()!
@@ -94,6 +96,16 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
         }
         
         let movements = getMovement(startFrame: startFrame, endFrame: endFrame)
+        
+        if movements.count > 0 {
+            recordingFramesLeft = kRecordingTimeout
+        } else {
+            recordingFramesLeft = max(0, recordingFramesLeft - 1)
+        }
+        
+        if recordingFramesLeft > 0 {
+            Imgproc.putText(img: image, text: "Recording: \(recordingFramesLeft)", org: Point2i(x: 10, y: 35), fontFace: .FONT_HERSHEY_SIMPLEX, fontScale: 0.75, color: Scalar(255, 255, 255))
+        }
         
         for movement in movements {
             let rectangle = Imgproc.boundingRect(array: movement)
