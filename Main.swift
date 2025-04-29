@@ -132,6 +132,9 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
                 stopRecording(recordingFilePath: recordingFilePath, recordingWriter: recordingWriter)
                 self.recordingWriter = nil
                 self.recordingFilePath = nil
+                self.endFrame = nil
+                self.startFrame = nil
+                frameDistance = 0
             }
         }
 
@@ -154,6 +157,13 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
         endFrame = nil
         startFrame = nil
         frameDistance = 0
+
+        if let recordingWriter = recordingWriter, let recordingFilePath = recordingFilePath {
+            stopRecording(recordingFilePath: recordingFilePath, recordingWriter: recordingWriter)
+            self.recordingWriter = nil
+            self.recordingFilePath = nil
+        }
+
     }
 
     func orientationSelected(_ orientation: String) {
@@ -163,6 +173,12 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
         endFrame = nil
         startFrame = nil
         frameDistance = 0
+
+        if let recordingWriter = recordingWriter, let recordingFilePath = recordingFilePath {
+            stopRecording(recordingFilePath: recordingFilePath, recordingWriter: recordingWriter)
+            self.recordingWriter = nil
+            self.recordingFilePath = nil
+        }
     }
 
     static func main() {
