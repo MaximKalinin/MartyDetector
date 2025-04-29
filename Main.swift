@@ -17,10 +17,18 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
     private var videoCapture: VideoCaptureProtocol?
     private var orientation: RotateFlags? = nil
 
+    private let tmpDirectory: String = {
+        let bundleId = Bundle.main.bundleIdentifier ?? "MartyDetector"
+        return "\(NSTemporaryDirectory())\(bundleId)/"
+    }()
+    private let isoFormatter = ISO8601DateFormatter()
+
     private var startFrame: Mat?
     private var endFrame: Mat?
     private var frameDistance: Int = 0
     private var recordingFramesLeft: Int = 0
+    private var recordingFilePath: String?
+    private var recordingWriter: VideoWriter?
     
     func setGui(_ gui: GuiProtocol) {
         self.gui = gui
@@ -43,6 +51,11 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         videoCapture?.cleanupCamera()
+        if let recordingWriter = recordingWriter, let recordingFilePath = recordingFilePath {
+            stopRecording(recordingFilePath: recordingFilePath, recordingWriter: recordingWriter)
+            self.recordingWriter = nil
+            self.recordingFilePath = nil
+        }
         return true
     }
 
@@ -93,7 +106,26 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
             recordingFramesLeft = max(0, recordingFramesLeft - 1)
         }
 
-        render(image: image, recordingFramesLeft: recordingFramesLeft, movements: movements)
+        let isRecording = recordingFramesLeft > 0
+        if isRecording {
+            
+            if recordingFilePath == nil && recordingWriter == nil {
+                do {
+                    (recordingFilePath, recordingWriter) = try startRecording(frameSize: startFrame.size())
+                } catch {
+                    print("Failed to start recording: \(error)")
+                    return
+                }
+            }
+        } else {
+            if let recordingWriter = recordingWriter, let recordingFilePath = recordingFilePath {
+                stopRecording(recordingFilePath: recordingFilePath, recordingWriter: recordingWriter)
+                self.recordingWriter = nil
+                self.recordingFilePath = nil
+            }
+        }
+
+        render(image: image, recordingFramesLeft: recordingFramesLeft, movements: movements, recordingWriter: recordingWriter)
         self.gui?.setImageAspectRatio(imageSize.width / imageSize.height)
     }
     
@@ -193,7 +225,11 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
         return filteredContours
     }
     
-    private func render(image: Mat, recordingFramesLeft: Int, movements: [Mat]) {
+    private func render(image: Mat, recordingFramesLeft: Int, movements: [Mat], recordingWriter: VideoWriter?) {
+        if let recordingWriter = recordingWriter {
+            recordingWriter.write(image: image)
+        }
+        
         Imgproc.cvtColor(src: image, dst: image, code: .COLOR_BGRA2RGB)
 
         if recordingFramesLeft > 0 {
@@ -206,5 +242,24 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
         }
         
         self.gui?.setImage(image.toNSImage())
+    }
+    
+    private func startRecording(frameSize: Size2i) throws -> (recordingFilePath: String, recordingWriter: VideoWriter) {
+        print("Starting recording")
+        let filename = "\(isoFormatter.string(from: Date())).mp4"
+        let recordingFilePath = "\(tmpDirectory)\(filename)"
+        
+        let tmpDirectoryUrl = URL(fileURLWithPath: tmpDirectory)
+            
+        try FileManager.default.createDirectory(at: tmpDirectoryUrl, withIntermediateDirectories: true)
+            
+        let fourccCString = "avc1".utf8CString
+        let recordingWriter = VideoWriter(filename: recordingFilePath, fourcc: Int32(VideoWriter.fourcc(c1: fourccCString[0], c2: fourccCString[1], c3: fourccCString[2], c4: fourccCString[3])), fps: 25.0, frameSize: frameSize)
+        
+        return (recordingFilePath, recordingWriter)
+    }
+    
+    private func stopRecording(recordingFilePath: String, recordingWriter: VideoWriter) {
+        print("Recording finished at \(recordingFilePath)")
     }
 }
