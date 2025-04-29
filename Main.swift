@@ -47,6 +47,16 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
 
         gui?.updateVideoSources(devices)
         gui?.updateOrientations([nil, RotateFlags.ROTATE_90_CLOCKWISE, RotateFlags.ROTATE_180, RotateFlags.ROTATE_90_COUNTERCLOCKWISE].map(orientationToString))
+        
+        let savedVideoSource = UserDefaults.standard.string(forKey: "videoSource")
+        if let savedVideoSource = savedVideoSource {
+            videoSourceSelected(savedVideoSource)
+        }
+        
+        let savedOrientation = UserDefaults.standard.string(forKey: "orientation")
+        if let savedOrientation = savedOrientation {
+            orientationSelected(savedOrientation)
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -136,13 +146,20 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
             print("Failed to find device: \(source)")
             return
         }
+        
+        UserDefaults.standard.set(source, forKey: "videoSource")
 
         videoCapture?.cleanupCamera()
         videoCapture?.setupCamera(deviceUniqueID: device.uniqueID)
+        endFrame = nil
+        startFrame = nil
+        frameDistance = 0
     }
 
     func orientationSelected(_ orientation: String) {
         self.orientation = stringToOrientation(orientation)
+        
+        UserDefaults.standard.set(orientation, forKey: "orientation")
         endFrame = nil
         startFrame = nil
         frameDistance = 0
