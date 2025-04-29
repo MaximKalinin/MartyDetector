@@ -16,6 +16,7 @@ add_executable(MartyDetector MACOSX_BUNDLE
     Main.swift
     Gui.swift
     VideoCapture.swift
+    TelegramAPI.swift
     Info.plist
 )
 

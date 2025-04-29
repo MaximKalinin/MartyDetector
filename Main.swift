@@ -4,6 +4,7 @@ import opencv2
 
 enum MainError: Error {
     case failedToCreateCGImage
+    case failedToLoadTelegramConfig
 }
 
 let kMaxFrameDistance = 10 // Max frames distance between start and end frame
@@ -16,6 +17,7 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
     private var gui: GuiProtocol?
     private var videoCapture: VideoCaptureProtocol?
     private var orientation: RotateFlags? = nil
+    private var telegramAPI: TelegramAPI?
 
     private let tmpDirectory: String = {
         let bundleId = Bundle.main.bundleIdentifier ?? "MartyDetector"
@@ -39,7 +41,17 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        print("Application did finish launching")
+        // Clean temporary directory
+        do {
+            let tmpDirectoryUrl = URL(fileURLWithPath: tmpDirectory)
+            if FileManager.default.fileExists(atPath: tmpDirectory) {
+                try FileManager.default.removeItem(at: tmpDirectoryUrl)
+            }
+            try FileManager.default.createDirectory(at: tmpDirectoryUrl, withIntermediateDirectories: true)
+        } catch {
+            print("Failed to clean temporary directory: \(error)")
+        }
+        
         // Now we can call GUI methods
         gui?.openWindow()
 
@@ -281,10 +293,6 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
         print("Starting recording")
         let filename = "\(isoFormatter.string(from: Date())).mp4"
         let recordingFilePath = "\(tmpDirectory)\(filename)"
-        
-        let tmpDirectoryUrl = URL(fileURLWithPath: tmpDirectory)
-            
-        try FileManager.default.createDirectory(at: tmpDirectoryUrl, withIntermediateDirectories: true)
             
         let fourccCString = "avc1".utf8CString
         let recordingWriter = VideoWriter(filename: recordingFilePath, fourcc: Int32(VideoWriter.fourcc(c1: fourccCString[0], c2: fourccCString[1], c3: fourccCString[2], c4: fourccCString[3])), fps: 25.0, frameSize: frameSize)
@@ -294,5 +302,20 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
     
     private func stopRecording(recordingFilePath: String, recordingWriter: VideoWriter) {
         print("Recording finished at \(recordingFilePath)")
+        
+        // Upload the video file asynchronously
+        if let telegramAPI = telegramAPI {
+            Task {
+                do {
+                    let timestamp = isoFormatter.string(from: Date())
+                    let _ = try await telegramAPI.sendVideo(videoPath: recordingFilePath, caption: "Motion detected at \(timestamp)")
+                    
+                    // Clean up the temporary file after successful upload
+                    try? FileManager.default.removeItem(atPath: recordingFilePath)
+                } catch {
+                    print("Failed to upload video to Telegram: \(error)")
+                }
+            }
+        }
     }
 }
