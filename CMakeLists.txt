@@ -17,6 +17,7 @@ add_executable(MartyDetector MACOSX_BUNDLE
     Gui.swift
     VideoCapture.swift
     TelegramAPI.swift
+    Config.swift
     Info.plist
 )
 
@@ -49,4 +50,7 @@ add_custom_command(TARGET MartyDetector POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${OPENCV2_FRAMEWORK_PATH}/opencv2.framework"
         "$<TARGET_FILE_DIR:MartyDetector>/../Frameworks/opencv2.framework"
+    COMMAND ${CMAKE_COMMAND} -E copy
+        "${CMAKE_SOURCE_DIR}/.env"
+        "$<TARGET_FILE_DIR:MartyDetector>/../../.env"
 )

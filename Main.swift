@@ -52,6 +52,14 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
             print("Failed to clean temporary directory: \(error)")
         }
         
+        // Initialize Telegram API
+        do {
+            let config = try Config.shared.loadFromEnv()
+            telegramAPI = TelegramAPI(token: config.token, chatId: config.chatId)
+        } catch {
+            print("Failed to load Telegram configuration: \(error)")
+        }
+        
         // Now we can call GUI methods
         gui?.openWindow()
 
