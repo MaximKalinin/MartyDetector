@@ -12,7 +12,7 @@ protocol GuiDelegate: AnyObject {
 @MainActor
 protocol GuiProtocol: AnyObject {
     func openWindow()
-    func setImage(_ image: NSImage)
+    func setImage(_ image: CGImage)
     func setImageAspectRatio(_ aspectRatio: CGFloat)
     func updateVideoSources(_ sources: [String])
     func updateOrientations(_ orientations: [String])
@@ -21,7 +21,7 @@ protocol GuiProtocol: AnyObject {
 @MainActor
 class Gui: NSObject, NSApplicationDelegate, GuiProtocol {
     var window: NSWindow?
-    let imageView: NSImageView
+    let caLayer: CALayer
     let containerView: NSView
     let videoSourceLabel: NSTextField
     let videoSourcePopup: NSPopUpButton
@@ -32,8 +32,10 @@ class Gui: NSObject, NSApplicationDelegate, GuiProtocol {
     let delegate: GuiDelegate
 
     init(delegate: GuiDelegate) {
-        imageView = NSImageView()
+        caLayer = CALayer()
         containerView = NSView()
+        containerView.wantsLayer = true
+        
         videoSourceLabel = NSTextField(labelWithString: "Video Source:")
         videoSourcePopup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 200, height: 25))
         orientationLabel = NSTextField(labelWithString: "Orientation:")
@@ -142,11 +144,14 @@ class Gui: NSObject, NSApplicationDelegate, GuiProtocol {
         window.contentView = containerView
 
         // Setup image view
-        imageView.frame = containerView.bounds
-        imageView.autoresizingMask = [.width, .height]
-        imageView.imageAlignment = .alignCenter
-        imageView.imageScaling = .scaleAxesIndependently
-        containerView.addSubview(imageView)
+        caLayer.autoresizingMask = [.layerWidthSizable, .layerHeightSizable]
+        caLayer.frame = containerView.bounds
+        
+        guard let layer = containerView.layer else {
+            print("Falied to add calayer to container view")
+            return
+        }
+        layer.addSublayer(caLayer)
 
         // Position label and popup in the top-left corner
         let labelWidth: CGFloat = 100
@@ -223,7 +228,7 @@ class Gui: NSObject, NSApplicationDelegate, GuiProtocol {
         }
     }
 
-    func setImage(_ image: NSImage) {
-        imageView.image = image
+    func setImage(_ image: CGImage) {
+        caLayer.contents = image
     }
 }

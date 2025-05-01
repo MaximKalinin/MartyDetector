@@ -306,7 +306,8 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
             Imgproc.rectangle(img: image, rec: rectangle, color: Scalar(0, 255, 0), thickness: 2)
         }
         
-        self.gui?.setImage(image.toNSImage())
+        let cgImage = image.toCGImage()
+        self.gui?.setImage(cgImage)
     }
     
     private func startRecording(frameSize: Size2i) throws -> (recordingFilePath: String, recordingWriter: VideoWriter) {
