@@ -7,6 +7,7 @@ protocol GuiDelegate: AnyObject {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool
     func videoSourceSelected(_ source: String)
     func orientationSelected(_ orientation: String)
+    func recordingStateChanged(_ isRecording: Bool)
 }
 @MainActor
 protocol GuiProtocol: AnyObject {
@@ -26,6 +27,8 @@ class Gui: NSObject, NSApplicationDelegate, GuiProtocol {
     let videoSourcePopup: NSPopUpButton
     let orientationLabel: NSTextField
     let orientationPopup: NSPopUpButton
+    let recordingLabel: NSTextField
+    let recordingSwitch: NSSwitch
     let delegate: GuiDelegate
 
     init(delegate: GuiDelegate) {
@@ -35,6 +38,8 @@ class Gui: NSObject, NSApplicationDelegate, GuiProtocol {
         videoSourcePopup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 200, height: 25))
         orientationLabel = NSTextField(labelWithString: "Orientation:")
         orientationPopup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 200, height: 25))
+        recordingLabel = NSTextField(labelWithString: "Start Recording:")
+        recordingSwitch = NSSwitch()
         self.delegate = delegate
         super.init()
         
@@ -53,6 +58,13 @@ class Gui: NSObject, NSApplicationDelegate, GuiProtocol {
         orientationPopup.target = self
         orientationPopup.action = #selector(orientationPopupChanged)
         updateOrientations(["Loading orientations..."])
+
+        // Configure recording controls
+        recordingLabel.font = .systemFont(ofSize: 13)
+        recordingLabel.textColor = .labelColor
+        
+        recordingSwitch.target = self
+        recordingSwitch.action = #selector(recordingSwitchChanged)
     }
     
     
@@ -90,6 +102,10 @@ class Gui: NSObject, NSApplicationDelegate, GuiProtocol {
         }
 
         delegate.orientationSelected(selectedOrientation)
+    }
+
+    @objc func recordingSwitchChanged() {
+        delegate.recordingStateChanged(recordingSwitch.state == .on)
     }
     
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -164,6 +180,21 @@ class Gui: NSObject, NSApplicationDelegate, GuiProtocol {
                                       height: rowHeight)
         orientationPopup.autoresizingMask = [.maxXMargin, .minYMargin]
         containerView.addSubview(orientationPopup)
+
+        // Position recording controls below the popups
+        recordingLabel.frame = NSRect(x: 20,
+                                    y: windowSize.height - 40 - (rowHeight * 2),
+                                    width: labelWidth,
+                                    height: rowHeight)
+        recordingLabel.autoresizingMask = [.maxXMargin, .minYMargin]
+        containerView.addSubview(recordingLabel)
+
+        recordingSwitch.frame = NSRect(x: 20 + labelWidth + spacing,
+                                     y: windowSize.height - 40 - (rowHeight * 2),
+                                     width: 51,  // Standard NSSwitch width
+                                     height: rowHeight)
+        recordingSwitch.autoresizingMask = [.maxXMargin, .minYMargin]
+        containerView.addSubview(recordingSwitch)
     }
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

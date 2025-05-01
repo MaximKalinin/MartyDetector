@@ -17,6 +17,7 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
     private var gui: GuiProtocol?
     private var videoCapture: VideoCaptureProtocol?
     private var orientation: RotateFlags? = nil
+    private var isRecordingActivated: Bool = false
     private var telegramAPI: TelegramAPI?
 
     private let tmpDirectory: String = {
@@ -130,7 +131,7 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
         
         let movements = getMovement(startFrame: startFrame, endFrame: endFrame)
         
-        if movements.count > 0 {
+        if movements.count > 0 && isRecordingActivated {
             recordingFramesLeft = kRecordingTimeout
         } else {
             recordingFramesLeft = max(0, recordingFramesLeft - 1)
@@ -138,7 +139,6 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
 
         let isRecording = recordingFramesLeft > 0
         if isRecording {
-            
             if recordingFilePath == nil && recordingWriter == nil {
                 do {
                     (recordingFilePath, recordingWriter) = try startRecording(frameSize: startFrame.size())
@@ -199,6 +199,10 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
             self.recordingWriter = nil
             self.recordingFilePath = nil
         }
+    }
+
+    func recordingStateChanged(_ isRecording: Bool) {
+        isRecordingActivated = isRecording
     }
 
     static func main() {
