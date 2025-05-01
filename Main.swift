@@ -1,6 +1,7 @@
 import Cocoa
 import AVFoundation
 import opencv2
+import IOKit.pwr_mgt
 
 enum MainError: Error {
     case failedToCreateCGImage
@@ -19,6 +20,7 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
     private var orientation: RotateFlags? = nil
     private var isRecordingActivated: Bool = false
     private var telegramAPI: TelegramAPI?
+    private var sleepAssertionID: IOPMAssertionID = 0
 
     private let tmpDirectory: String = {
         let bundleId = Bundle.main.bundleIdentifier ?? "MartyDetector"
@@ -42,6 +44,9 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Prevent sleep while the app is running
+        preventSleep()
+        
         // Clean temporary directory
         do {
             let tmpDirectoryUrl = URL(fileURLWithPath: tmpDirectory)
@@ -81,6 +86,9 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        // Allow sleep when the app is closing
+        allowSleep()
+        
         videoCapture?.cleanupCamera()
         if let recordingWriter = recordingWriter, let recordingFilePath = recordingFilePath {
             stopRecording(recordingFilePath: recordingFilePath, recordingWriter: recordingWriter)
@@ -328,6 +336,27 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
                     print("Failed to upload video to Telegram: \(error)")
                 }
             }
+        }
+    }
+    
+    private func preventSleep() {
+        var assertionID = sleepAssertionID
+        let reason = "Marty Detector is running" as CFString
+        let success = IOPMAssertionCreateWithName(
+            kIOPMAssertionTypeNoDisplaySleep as CFString,
+            IOPMAssertionLevel(kIOPMAssertionLevelOn),
+            reason,
+            &assertionID
+        )
+        if success == kIOReturnSuccess {
+            sleepAssertionID = assertionID
+        }
+    }
+    
+    private func allowSleep() {
+        if sleepAssertionID != 0 {
+            IOPMAssertionRelease(sleepAssertionID)
+            sleepAssertionID = 0
         }
     }
 }
