@@ -17,8 +17,10 @@ class Config {
         }
         
         // If not found in environment, try to load from .env file
-        let envPath = Bundle.main.bundlePath + "/.env"
-        guard let envContents = try? String(contentsOfFile: envPath, encoding: .utf8) else {
+        guard let envURL = Bundle.main.url(forResource: "", withExtension: "env") else {
+            throw ConfigError.missingEnvironmentVariable("Could not create url for .env file")
+        }
+        guard let envContents = try? String(contentsOf: envURL, encoding: .utf8) else {
             throw ConfigError.missingEnvironmentVariable("Could not find .env file")
         }
         
