@@ -33,7 +33,7 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
     private var frameDistance: Int = 0
     private var recordingFramesLeft: Int = 0
     private var recordingFilePath: String?
-    private var recordingWriter: VideoWriter?
+    private var recordingWriter: FileWriter?
     
     func setGui(_ gui: GuiProtocol) {
         self.gui = gui
@@ -290,13 +290,13 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
         return filteredContours
     }
     
-    private func render(image: Mat, recordingFramesLeft: Int, movements: [Mat], recordingWriter: VideoWriter?) {
-        if let recordingWriter = recordingWriter {
-            recordingWriter.write(image: image)
-        }
-        
+    private func render(image: Mat, recordingFramesLeft: Int, movements: [Mat], recordingWriter: FileWriter?) {
         Imgproc.cvtColor(src: image, dst: image, code: .COLOR_BGRA2RGB)
 
+        if let recordingWriter = recordingWriter {
+            recordingWriter.writeImage(image: image.toCGImage())
+        }
+        
         if recordingFramesLeft > 0 {
             Imgproc.putText(img: image, text: "Recording: \(recordingFramesLeft)", org: Point2i(x: 10, y: 35), fontFace: .FONT_HERSHEY_SIMPLEX, fontScale: 0.75, color: Scalar(255, 255, 255))
         }
@@ -306,28 +306,28 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
             Imgproc.rectangle(img: image, rec: rectangle, color: Scalar(0, 255, 0), thickness: 2)
         }
         
-        let cgImage = image.toCGImage()
-        self.gui?.setImage(cgImage)
+        self.gui?.setImage(image.toCGImage())
     }
     
-    private func startRecording(frameSize: Size2i) throws -> (recordingFilePath: String, recordingWriter: VideoWriter) {
+    private func startRecording(frameSize: Size2i) throws -> (recordingFilePath: String, recordingWriter: FileWriter) {
         print("Starting recording")
         let filename = "\(isoFormatter.string(from: Date())).mp4"
         let recordingFilePath = "\(tmpDirectory)\(filename)"
-            
-        let fourccCString = "avc1".utf8CString
-        let recordingWriter = VideoWriter(filename: recordingFilePath, fourcc: Int32(VideoWriter.fourcc(c1: fourccCString[0], c2: fourccCString[1], c3: fourccCString[2], c4: fourccCString[3])), fps: 25.0, frameSize: frameSize)
+        let recordingFileUrl = URL(fileURLWithPath: recordingFilePath)
+        
+        let recordingWriter = try FileWriter(url: recordingFileUrl, fps: 25, frameSize: frameSize)
         
         return (recordingFilePath, recordingWriter)
     }
     
-    private func stopRecording(recordingFilePath: String, recordingWriter: VideoWriter) {
+    private func stopRecording(recordingFilePath: String, recordingWriter: FileWriter) {
         print("Recording finished at \(recordingFilePath)")
         
         // Upload the video file asynchronously
         if let telegramAPI = telegramAPI {
             Task {
                 do {
+                    await recordingWriter.stopRecording()
                     let timestamp = isoFormatter.string(from: Date())
                     let _ = try await telegramAPI.sendVideo(videoPath: recordingFilePath, caption: "Motion detected at \(timestamp)")
                     
