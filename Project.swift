@@ -12,6 +12,7 @@ let project = Project(
             infoPlist: .extendingDefault(
                 with: [
                     "NSCameraUsageDescription": "We need access to your camera to detect Marty",
+                    "NSMicrophoneUsageDescription": "We need access to your microphone to record Marty",
                 ]
             ),
             sources: ["MartyDetector/Sources/**"],

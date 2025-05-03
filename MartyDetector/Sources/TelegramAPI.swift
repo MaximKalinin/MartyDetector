@@ -17,8 +17,7 @@ class TelegramAPI: NSObject {
         let url = URL(string: "\(baseUrl)/sendVideo")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.timeoutInterval = 10
-        
+
         let videoSize = try await getVideoSize(videoPath: videoPath)
         
         // Create boundary for multipart/form-data

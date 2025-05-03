@@ -9,6 +9,7 @@ class FileWriter: NSObject {
     private let frameSize: Size2i
     private let fps: Int32
     private var frames: Int64 = 0
+    private var startTime: CMTime?
     
     init(url: URL, fps: Int32, frameSize: Size2i) throws {
         assetWriter = try AVAssetWriter(outputURL: url, fileType: .mp4)
@@ -35,9 +36,6 @@ class FileWriter: NSObject {
         self.frameSize = frameSize
         self.fps = fps
 
-        assetWriter.startWriting()
-        assetWriter.startSession(atSourceTime: .zero)
-
         super.init()
     }
 
@@ -47,7 +45,13 @@ class FileWriter: NSObject {
         await assetWriter.finishWriting()
     }
 
-    func writeImage(image: CGImage) {
+    func writeImage(image: CGImage, presentationTime: CMTime) {
+        if startTime == nil {
+            assetWriter.startWriting()
+            assetWriter.startSession(atSourceTime: presentationTime)
+            startTime = presentationTime
+        }
+
         // writer status check
         if assetWriter.status != .writing {
             print("assetWriter.status: \(assetWriter.status). Error: \(assetWriter.error?.localizedDescription ?? "Unknown error")")
@@ -124,7 +128,7 @@ class FileWriter: NSObject {
         // Create CMSampleTimingInfo
         var timingInfo = CMSampleTimingInfo(
             duration: .invalid,
-            presentationTimeStamp: CMTime(value: frames, timescale: fps),
+            presentationTimeStamp: presentationTime,
             decodeTimeStamp: .invalid
         )
 
@@ -146,6 +150,14 @@ class FileWriter: NSObject {
     }
 
     func writeAudioBuffer(buffer: CMSampleBuffer) {
+        if startTime == nil {
+            let presentationTime = CMSampleBufferGetPresentationTimeStamp(buffer)
 
+            assetWriter.startWriting()
+            assetWriter.startSession(atSourceTime: presentationTime)
+            startTime = presentationTime
+        }
+
+        audioInput.append(buffer)
     }
 }

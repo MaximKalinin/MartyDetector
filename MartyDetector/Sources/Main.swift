@@ -14,9 +14,9 @@ let kRecordingTimeout = 100 // no. of frame count down before saving the video
 
 @main
 @MainActor
-class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
+class Main: NSObject, GuiDelegate, SourceCaptureDelegate {
     private var gui: GuiProtocol?
-    private var videoCapture: VideoCaptureProtocol?
+    private var sourceCapture: SourceCaptureProtocol?
     private var orientation: RotateFlags? = nil
     private var isRecordingActivated: Bool = false
     private var telegramAPI: TelegramAPI?
@@ -39,8 +39,8 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
         self.gui = gui
     }
 
-    func setVideoCapture(_ videoCapture: VideoCaptureProtocol) {
-        self.videoCapture = videoCapture
+    func setSourceCapture(_ sourceCapture: SourceCaptureProtocol) {
+        self.sourceCapture = sourceCapture
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -89,7 +89,7 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
         // Allow sleep when the app is closing
         allowSleep()
         
-        videoCapture?.cleanupCamera()
+        sourceCapture?.cleanup()
         if let recordingWriter = recordingWriter, let recordingFilePath = recordingFilePath {
             stopRecording(recordingFilePath: recordingFilePath, recordingWriter: recordingWriter)
             self.recordingWriter = nil
@@ -97,8 +97,14 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
         }
         return true
     }
+    
+    func captureOutput(didOutput audioSampleBuffer: CMSampleBuffer) {
+        if let recordingWriter = recordingWriter {
+            recordingWriter.writeAudioBuffer(buffer: audioSampleBuffer)
+        }
+    }
 
-    func captureOutput(didOutput pixelBuffer: CVPixelBuffer) {
+    func captureOutput(didOutput pixelBuffer: CVPixelBuffer, presentationTime: CMTime) {
         CVPixelBufferLockBaseAddress(pixelBuffer, [])
         defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
         let formatOpencv = CvType.CV_8UC4
@@ -166,7 +172,7 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
             }
         }
 
-        render(image: image, recordingFramesLeft: recordingFramesLeft, movements: movements, recordingWriter: recordingWriter)
+        render(image: image, presentationTime: presentationTime, recordingFramesLeft: recordingFramesLeft, movements: movements, recordingWriter: recordingWriter)
         self.gui?.setImageAspectRatio(imageSize.width / imageSize.height)
     }
     
@@ -180,8 +186,8 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
         
         UserDefaults.standard.set(source, forKey: "videoSource")
 
-        videoCapture?.cleanupCamera()
-        videoCapture?.setupCamera(deviceUniqueID: device.uniqueID)
+        sourceCapture?.cleanup()
+        sourceCapture?.setup(cameraUniqueID: device.uniqueID)
         endFrame = nil
         startFrame = nil
         frameDistance = 0
@@ -217,9 +223,9 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
         let app = NSApplication.shared
         let main = Main()
         let gui = Gui(delegate: main)
-        let videoCapture = VideoCapture(delegate: main)
+        let sourceCapture = SourceCapture(delegate: main)
         main.setGui(gui)
-        main.setVideoCapture(videoCapture)
+        main.setSourceCapture(sourceCapture)
         app.delegate = gui
         app.run()
     }
@@ -290,11 +296,11 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
         return filteredContours
     }
     
-    private func render(image: Mat, recordingFramesLeft: Int, movements: [Mat], recordingWriter: FileWriter?) {
+    private func render(image: Mat, presentationTime: CMTime, recordingFramesLeft: Int, movements: [Mat], recordingWriter: FileWriter?) {
         Imgproc.cvtColor(src: image, dst: image, code: .COLOR_BGRA2RGB)
 
         if let recordingWriter = recordingWriter {
-            recordingWriter.writeImage(image: image.toCGImage())
+            recordingWriter.writeImage(image: image.toCGImage(), presentationTime: presentationTime)
         }
         
         if recordingFramesLeft > 0 {
@@ -332,7 +338,7 @@ class Main: NSObject, GuiDelegate, VideoCaptureDelegate {
                     let _ = try await telegramAPI.sendVideo(videoPath: recordingFilePath, caption: "Motion detected at \(timestamp)")
                     
                     // Clean up the temporary file after successful upload
-                    try? FileManager.default.removeItem(atPath: recordingFilePath)
+                   try? FileManager.default.removeItem(atPath: recordingFilePath)
                 } catch {
                     print("Failed to upload video to Telegram: \(error)")
                 }
