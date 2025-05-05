@@ -16,7 +16,8 @@ class SourceCapture: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, AVC
     var captureSession: AVCaptureSession?
     var videoOutput: AVCaptureVideoDataOutput?
     var audioOutput: AVCaptureAudioDataOutput?
-    var delegate: SourceCaptureDelegate
+    var captureSessionID: UUID?
+    let delegate: SourceCaptureDelegate
 
     init(delegate: SourceCaptureDelegate) {
         self.delegate = delegate
@@ -24,6 +25,7 @@ class SourceCapture: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, AVC
     }
     
     func setup(cameraUniqueID: String) {
+        captureSessionID = UUID()
         captureSession = AVCaptureSession()
         guard let captureSession = captureSession else {
             print("Failed to create capture session")
@@ -92,6 +94,7 @@ class SourceCapture: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, AVC
     }
 
     func cleanup() {
+        captureSessionID = nil
         guard let captureSession = captureSession else { return }
         
         captureSession.stopRunning()
@@ -120,14 +123,29 @@ class SourceCapture: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, AVC
     func captureOutput(_ output: AVCaptureOutput,
                        didOutput sampleBuffer: CMSampleBuffer,
                        from connection: AVCaptureConnection) {
+        let currentCaptureSessionID = captureSessionID
+        
+        if currentCaptureSessionID == nil {
+            print("Discarding frame as session stopped")
+            return
+        }
+        
         if isVideoSampleBuffer(sampleBuffer) {
             guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
             
             DispatchQueue.main.async {
+                if self.captureSessionID != currentCaptureSessionID {
+                    print("Discarding frame as session changed")
+                    return
+                }
                 self.delegate.captureOutput(didOutput: pixelBuffer, presentationTime: CMSampleBufferGetPresentationTimeStamp(sampleBuffer))
             }
         } else if isAudioSampleBuffer(sampleBuffer) {
             DispatchQueue.main.async {
+                if self.captureSessionID != currentCaptureSessionID {
+                    print("Discarding frame as session changed")
+                    return
+                }
                 self.delegate.captureOutput(didOutput: sampleBuffer)
             }
         }
