@@ -18,7 +18,7 @@ let project = Project(
             sources: ["MartyDetector/Sources/**"],
             resources: ["MartyDetector/Resources/**"],
             dependencies: [
-                .framework(path: "./vendor/frameworks/opencv2.framework"),
+                .xcframework(path: "./vendor/frameworks/opencv2.xcframework"),
                 .sdk(name: "c++", type: .library, status: .required),
                 .sdk(name: "OpenCL", type: .framework, status: .required),
                 .sdk(name: "Accelerate", type: .framework, status: .required)
