@@ -16,7 +16,10 @@ class FileWriter: NSObject {
         let videoSettings: [String: Any] = [
             AVVideoCodecKey: AVVideoCodecType.h264,
             AVVideoWidthKey: frameSize.width,
-            AVVideoHeightKey: frameSize.height
+            AVVideoHeightKey: frameSize.height,
+            AVVideoCompressionPropertiesKey: [
+                AVVideoAverageBitRateKey: (300 * 8 * 1000)
+            ]
         ]
         videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
         videoInput.expectsMediaDataInRealTime = true
