@@ -359,18 +359,18 @@ class Main: NSObject, GuiDelegate, SourceCaptureDelegate {
         print("Recording finished at \(recordingFilePath)")
         
         // Upload the video file asynchronously
-        if let telegramAPI = telegramAPI {
-            Task {
-                do {
-                    await recordingWriter.stopRecording()
+        Task {
+            do {
+                await recordingWriter.stopRecording()
+                if let telegramAPI = telegramAPI {
                     let timestamp = isoFormatter.string(from: Date())
                     let _ = try await telegramAPI.sendVideo(videoPath: recordingFilePath, caption: "Motion detected at \(timestamp)")
                     
                     // Clean up the temporary file after successful upload
-                   try? FileManager.default.removeItem(atPath: recordingFilePath)
-                } catch {
-                    print("Failed to upload video to Telegram: \(error)")
+                    try? FileManager.default.removeItem(atPath: recordingFilePath)
                 }
+            } catch {
+                print("Failed to upload video to Telegram: \(error)")
             }
         }
     }
