@@ -2,6 +2,7 @@ import Cocoa
 import AVFoundation
 import opencv2
 import IOKit.pwr_mgt
+import Security
 
 enum MainError: Error {
     case failedToCreateCGImage
@@ -34,6 +35,10 @@ class Main: NSObject, GuiDelegate, SourceCaptureDelegate {
     private var recordingFramesLeft: Int = 0
     private var recordingFilePath: String?
     private var recordingWriter: FileWriter?
+    private let secureStorage = {
+        let bundleId = Bundle.main.bundleIdentifier ?? "MartyDetector"
+        return SecureStorage(service: bundleId)
+    }()
     
     func setGui(_ gui: GuiProtocol) {
         self.gui = gui
@@ -59,12 +64,7 @@ class Main: NSObject, GuiDelegate, SourceCaptureDelegate {
         }
         
         // Initialize Telegram API
-        do {
-            let config = try Config.shared.loadFromEnv()
-            telegramAPI = TelegramAPI(token: config.token, chatId: config.chatId)
-        } catch {
-            print("Failed to load Telegram configuration: \(error)")
-        }
+        tryInitTelegramAPI()
         
         // Now we can call GUI methods
         gui?.openWindow()
@@ -217,6 +217,35 @@ class Main: NSObject, GuiDelegate, SourceCaptureDelegate {
 
     func recordingStateChanged(_ isRecording: Bool) {
         isRecordingActivated = isRecording
+    }
+
+    func telegramApiKeyChanged(_ apiKey: String) {
+        print("api key changed")
+
+        do {
+            try secureStorage.set(key: "telegramApiKey", value: apiKey)
+            tryInitTelegramAPI()
+        } catch {
+            print("Failed to save api key: \(error)")
+        }
+    }
+
+    func telegramChatIdChanged(_ chatId: String) {
+        print("chat id changed to: \(chatId)")
+        UserDefaults.standard.set(chatId, forKey: "telegramChatId")
+        
+        tryInitTelegramAPI()
+    }
+
+    func tryInitTelegramAPI() {
+        do {
+            let apiKey = try secureStorage.get(key: "telegramApiKey")
+            if let telegramChatId = UserDefaults.standard.string(forKey: "telegramChatId") {
+                telegramAPI = TelegramAPI(token: apiKey, chatId: telegramChatId)
+            }
+        } catch {
+            print("Failed to load Telegram configuration: \(error)")
+        }
     }
 
     static func main() {

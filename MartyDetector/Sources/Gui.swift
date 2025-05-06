@@ -8,6 +8,8 @@ protocol GuiDelegate: AnyObject {
     func videoSourceSelected(_ source: String)
     func orientationSelected(_ orientation: String)
     func recordingStateChanged(_ isRecording: Bool)
+    func telegramApiKeyChanged(_ apiKey: String)
+    func telegramChatIdChanged(_ chatId: String)
 }
 @MainActor
 protocol GuiProtocol: AnyObject {
@@ -29,6 +31,10 @@ class Gui: NSObject, NSApplicationDelegate, GuiProtocol {
     let orientationPopup: NSPopUpButton
     let recordingLabel: NSTextField
     let recordingSwitch: NSSwitch
+    let telegramApiKeyLabel: NSTextField
+    let telegramApiKeyField: NSSecureTextField
+    let telegramChatIdLabel: NSTextField
+    let telegramChatIdField: NSTextField
     let delegate: GuiDelegate
 
     init(delegate: GuiDelegate) {
@@ -42,6 +48,10 @@ class Gui: NSObject, NSApplicationDelegate, GuiProtocol {
         orientationPopup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 200, height: 25))
         recordingLabel = NSTextField(labelWithString: "Start Recording:")
         recordingSwitch = NSSwitch()
+        telegramApiKeyLabel = NSTextField(labelWithString: "Telegram API Key:")
+        telegramApiKeyField = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 200, height: 25))
+        telegramChatIdLabel = NSTextField(labelWithString: "Chat ID:")
+        telegramChatIdField = NSTextField(frame: NSRect(x: 0, y: 0, width: 200, height: 25))
         self.delegate = delegate
         super.init()
         
@@ -67,6 +77,20 @@ class Gui: NSObject, NSApplicationDelegate, GuiProtocol {
         
         recordingSwitch.target = self
         recordingSwitch.action = #selector(recordingSwitchChanged)
+
+        // Configure Telegram API key field
+        telegramApiKeyLabel.font = .systemFont(ofSize: 13)
+        telegramApiKeyLabel.textColor = .labelColor
+        
+        telegramApiKeyField.target = self
+        telegramApiKeyField.action = #selector(telegramApiKeyChanged)
+
+        // Configure Telegram Chat ID field
+        telegramChatIdLabel.font = .systemFont(ofSize: 13)
+        telegramChatIdLabel.textColor = .labelColor
+        
+        telegramChatIdField.target = self
+        telegramChatIdField.action = #selector(telegramChatIdChanged)
     }
     
     
@@ -108,6 +132,14 @@ class Gui: NSObject, NSApplicationDelegate, GuiProtocol {
 
     @objc func recordingSwitchChanged() {
         delegate.recordingStateChanged(recordingSwitch.state == .on)
+    }
+
+    @objc func telegramApiKeyChanged() {
+        delegate.telegramApiKeyChanged(telegramApiKeyField.stringValue)
+    }
+
+    @objc func telegramChatIdChanged() {
+        delegate.telegramChatIdChanged(telegramChatIdField.stringValue)
     }
     
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -154,48 +186,80 @@ class Gui: NSObject, NSApplicationDelegate, GuiProtocol {
         layer.addSublayer(caLayer)
 
         // Position label and popup in the top-left corner
-        let labelWidth: CGFloat = 100
+        let labelWidth: CGFloat = 120
         let rowHeight: CGFloat = 25
         let spacing: CGFloat = 10
+        let topMargin: CGFloat = 40
+        let leftMargin: CGFloat = 20
         
-        videoSourceLabel.frame = NSRect(x: 20,
-                                      y: windowSize.height - 40,
+        videoSourceLabel.frame = NSRect(x: leftMargin,
+                                      y: windowSize.height - topMargin,
                                       width: labelWidth,
                                       height: rowHeight)
         videoSourceLabel.autoresizingMask = [.maxXMargin, .minYMargin]
         containerView.addSubview(videoSourceLabel)
         
-        videoSourcePopup.frame = NSRect(x: 20 + labelWidth + spacing,
-                                      y: windowSize.height - 40,
+        videoSourcePopup.frame = NSRect(x: leftMargin + labelWidth + spacing,
+                                      y: windowSize.height - topMargin,
                                       width: 200,
                                       height: rowHeight)
         videoSourcePopup.autoresizingMask = [.maxXMargin, .minYMargin]
         containerView.addSubview(videoSourcePopup)
 
-        orientationLabel.frame = NSRect(x: 20,
-                                      y: windowSize.height - 40 - rowHeight,
+        orientationLabel.frame = NSRect(x: leftMargin,
+                                      y: windowSize.height - topMargin - rowHeight,
                                       width: labelWidth,
                                       height: rowHeight)
         orientationLabel.autoresizingMask = [.maxXMargin, .minYMargin]
         containerView.addSubview(orientationLabel)
 
-        orientationPopup.frame = NSRect(x: 20 + labelWidth + spacing,
-                                      y: windowSize.height - 40 - rowHeight,
+        orientationPopup.frame = NSRect(x: leftMargin + labelWidth + spacing,
+                                      y: windowSize.height - topMargin - rowHeight,
                                       width: 200,
                                       height: rowHeight)
         orientationPopup.autoresizingMask = [.maxXMargin, .minYMargin]
         containerView.addSubview(orientationPopup)
 
+        // Position Telegram API key field below recording controls
+        telegramApiKeyLabel.frame = NSRect(x: leftMargin,
+                                         y: windowSize.height - topMargin - (rowHeight * 2),
+                                         width: labelWidth,
+                                         height: rowHeight)
+        telegramApiKeyLabel.autoresizingMask = [.maxXMargin, .minYMargin]
+        containerView.addSubview(telegramApiKeyLabel)
+
+        telegramApiKeyField.frame = NSRect(x: leftMargin + labelWidth + spacing,
+                                         y: windowSize.height - topMargin - (rowHeight * 2),
+                                         width: 200,
+                                         height: rowHeight)
+        telegramApiKeyField.autoresizingMask = [.maxXMargin, .minYMargin]
+        containerView.addSubview(telegramApiKeyField)
+
+        // Position Telegram Chat ID field next to API key
+        telegramChatIdLabel.frame = NSRect(x: leftMargin,
+                                         y: windowSize.height - topMargin - (rowHeight * 3),
+                                         width: labelWidth,
+                                         height: rowHeight)
+        telegramChatIdLabel.autoresizingMask = [.maxXMargin, .minYMargin]
+        containerView.addSubview(telegramChatIdLabel)
+
+        telegramChatIdField.frame = NSRect(x: leftMargin + labelWidth + spacing,
+                                         y: windowSize.height - topMargin - (rowHeight * 3),
+                                         width: 200,
+                                         height: rowHeight)
+        telegramChatIdField.autoresizingMask = [.maxXMargin, .minYMargin]
+        containerView.addSubview(telegramChatIdField)
+        
         // Position recording controls below the popups
-        recordingLabel.frame = NSRect(x: 20,
-                                    y: windowSize.height - 40 - (rowHeight * 2),
+        recordingLabel.frame = NSRect(x: leftMargin,
+                                    y: windowSize.height - topMargin - (rowHeight * 4),
                                     width: labelWidth,
                                     height: rowHeight)
         recordingLabel.autoresizingMask = [.maxXMargin, .minYMargin]
         containerView.addSubview(recordingLabel)
 
-        recordingSwitch.frame = NSRect(x: 20 + labelWidth + spacing,
-                                     y: windowSize.height - 40 - (rowHeight * 2),
+        recordingSwitch.frame = NSRect(x: leftMargin + labelWidth + spacing,
+                                     y: windowSize.height - topMargin - (rowHeight * 4),
                                      width: 51,  // Standard NSSwitch width
                                      height: rowHeight)
         recordingSwitch.autoresizingMask = [.maxXMargin, .minYMargin]
