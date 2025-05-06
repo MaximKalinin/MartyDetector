@@ -7,7 +7,7 @@ let project = Project(
             name: "MartyDetector",
             destinations: .macOS,
             product: .app,
-            bundleId: "com.example.MartyDetector",
+            bundleId: "com.example.martydetector",
             deploymentTargets: .macOS("14.0"),
             infoPlist: .extendingDefault(
                 with: [
