@@ -14,6 +14,7 @@ class TelegramAPI: NSObject {
     }
     
     func sendVideo(videoPath: String, caption: String? = nil) async throws -> [String: Any] {
+        print("Sending video")
         let url = URL(string: "\(baseUrl)/sendVideo")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -82,6 +83,8 @@ class TelegramAPI: NSObject {
         guard let json = try JSONSerialization.jsonObject(with: responseData) as? [String: Any] else {
             throw NSError(domain: "TelegramAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid JSON response"])
         }
+        
+        print("Video sent")
         
         return json
     }
