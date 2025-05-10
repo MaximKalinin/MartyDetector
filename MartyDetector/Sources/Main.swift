@@ -12,6 +12,7 @@ enum MainError: Error {
 let kMaxFrameDistance = 10 // Max frames distance between start and end frame
 let kMinContourArea = 400.0 // Minimum contour area to be considered as a movement
 let kRecordingTimeout = 100 // no. of frame count down before saving the video
+let kMinRecordingDurationSeconds: Double = 6.0
 
 @main
 @MainActor
@@ -31,6 +32,9 @@ class Main: NSObject, GuiDelegate, SourceCaptureDelegate {
 
     private var startFrame: Mat?
     private var endFrame: Mat?
+    
+    private var recordingTimeStart: CMTime?
+    private var recordingTimeEnd: CMTime?
     private var frameDistance: Int = 0
     private var recordingFramesLeft: Int = 0
     private var recordingFilePath: String?
@@ -160,6 +164,7 @@ class Main: NSObject, GuiDelegate, SourceCaptureDelegate {
         let isRecording = recordingFramesLeft > 0
         if isRecording {
             if recordingFilePath == nil && recordingWriter == nil {
+                recordingTimeStart = presentationTime
                 do {
                     (recordingFilePath, recordingWriter) = try startRecording(frameSize: startFrame.size())
                 } catch {
@@ -169,6 +174,7 @@ class Main: NSObject, GuiDelegate, SourceCaptureDelegate {
             }
         } else {
             if let recordingWriter = recordingWriter, let recordingFilePath = recordingFilePath {
+                recordingTimeEnd = presentationTime
                 stopRecording(recordingFilePath: recordingFilePath, recordingWriter: recordingWriter)
                 self.recordingWriter = nil
                 self.recordingFilePath = nil
@@ -358,11 +364,19 @@ class Main: NSObject, GuiDelegate, SourceCaptureDelegate {
     private func stopRecording(recordingFilePath: String, recordingWriter: FileWriter) {
         print("Recording finished at \(recordingFilePath)")
         
+        guard let recordingTimeStart = recordingTimeStart, let recordingTimeEnd = recordingTimeEnd else {
+            print("Failed to get recording length")
+            return
+        }
+        
+        let recordingDurationSeconds = CMTimeGetSeconds(CMTimeSubtract(recordingTimeEnd, recordingTimeStart))
+        
         // Upload the video file asynchronously
         Task {
             do {
                 await recordingWriter.stopRecording()
-                if let telegramAPI = telegramAPI {
+                // do not send videos shorter than threshold
+                if let telegramAPI = telegramAPI, recordingDurationSeconds >= kMinRecordingDurationSeconds {
                     let timestamp = isoFormatter.string(from: Date())
                     let _ = try await telegramAPI.sendVideo(videoPath: recordingFilePath, caption: "Motion detected at \(timestamp)")
                     
