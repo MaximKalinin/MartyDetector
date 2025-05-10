@@ -7,11 +7,9 @@ class FileWriter: NSObject {
     private let videoInput: AVAssetWriterInput
     private let audioInput: AVAssetWriterInput
     private let frameSize: Size2i
-    private let fps: Int32
     private var frames: Int64 = 0
-    private var startTime: CMTime?
     
-    init(url: URL, fps: Int32, frameSize: Size2i) throws {
+    init(url: URL, frameSize: Size2i) throws {
         assetWriter = try AVAssetWriter(outputURL: url, fileType: .mp4)
         let videoSettings: [String: Any] = [
             AVVideoCodecKey: AVVideoCodecType.h264,
@@ -37,7 +35,6 @@ class FileWriter: NSObject {
 
         assetWriter.add(audioInput)
         self.frameSize = frameSize
-        self.fps = fps
 
         super.init()
     }
@@ -49,10 +46,9 @@ class FileWriter: NSObject {
     }
 
     func writeImage(image: CGImage, presentationTime: CMTime) {
-        if startTime == nil {
+        if assetWriter.status == .unknown {
             assetWriter.startWriting()
             assetWriter.startSession(atSourceTime: presentationTime)
-            startTime = presentationTime
         }
 
         // writer status check
@@ -153,12 +149,11 @@ class FileWriter: NSObject {
     }
 
     func writeAudioBuffer(buffer: CMSampleBuffer) {
-        if startTime == nil {
+        if assetWriter.status == .unknown {
             let presentationTime = CMSampleBufferGetPresentationTimeStamp(buffer)
 
             assetWriter.startWriting()
             assetWriter.startSession(atSourceTime: presentationTime)
-            startTime = presentationTime
         }
 
         audioInput.append(buffer)

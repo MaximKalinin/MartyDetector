@@ -340,7 +340,7 @@ class Main: NSObject, GuiDelegate, SourceCaptureDelegate {
         let recordingFilePath = "\(tmpDirectory)\(filename)"
         let recordingFileUrl = URL(fileURLWithPath: recordingFilePath)
         
-        let recordingWriter = try FileWriter(url: recordingFileUrl, fps: 25, frameSize: frameSize)
+        let recordingWriter = try FileWriter(url: recordingFileUrl, frameSize: frameSize)
         
         return (recordingFilePath, recordingWriter)
     }
