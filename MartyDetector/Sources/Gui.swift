@@ -18,6 +18,10 @@ protocol GuiProtocol: AnyObject {
     func setImageAspectRatio(_ aspectRatio: CGFloat)
     func updateVideoSources(_ sources: [String])
     func updateOrientations(_ orientations: [String])
+    func setVideoSource(_ source: String)
+    func setOrientation(_ orientation: String)
+    func setTelegramApiKey(_ apiKey: String)
+    func setTelegramChatId(_ chatId: String)
 }
 
 @MainActor
@@ -140,6 +144,22 @@ class Gui: NSObject, NSApplicationDelegate, GuiProtocol {
 
     @objc func telegramChatIdChanged() {
         delegate.telegramChatIdChanged(telegramChatIdField.stringValue)
+    }
+
+    func setVideoSource(_ source: String) {
+        videoSourcePopup.selectItem(withTitle: source)
+    }
+
+    func setOrientation(_ orientation: String) {
+        orientationPopup.selectItem(withTitle: orientation)
+    }
+
+    func setTelegramApiKey(_ apiKey: String) {
+        telegramApiKeyField.stringValue = apiKey
+    }
+
+    func setTelegramChatId(_ chatId: String) {
+        telegramChatIdField.stringValue = chatId
     }
     
     func applicationDidFinishLaunching(_ notification: Notification) {

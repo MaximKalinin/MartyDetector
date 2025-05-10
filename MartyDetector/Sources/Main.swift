@@ -70,14 +70,24 @@ class Main: NSObject, GuiDelegate, SourceCaptureDelegate {
         gui?.updateVideoSources(devices)
         gui?.updateOrientations([nil, RotateFlags.ROTATE_90_CLOCKWISE, RotateFlags.ROTATE_180, RotateFlags.ROTATE_90_COUNTERCLOCKWISE].map(orientationToString))
         
-        let savedVideoSource = UserDefaults.standard.string(forKey: "videoSource")
-        if let savedVideoSource = savedVideoSource {
+        if let savedVideoSource = UserDefaults.standard.string(forKey: "videoSource"), devices.contains(savedVideoSource) {
+            gui?.setVideoSource(savedVideoSource)
             videoSourceSelected(savedVideoSource)
         }
         
-        let savedOrientation = UserDefaults.standard.string(forKey: "orientation")
-        if let savedOrientation = savedOrientation {
+        if let savedOrientation = UserDefaults.standard.string(forKey: "orientation") {
+            gui?.setOrientation(savedOrientation)
             orientationSelected(savedOrientation)
+        }
+
+        if let savedTelegramApiKey = UserDefaults.standard.string(forKey: "telegramApiKey") {
+            gui?.setTelegramApiKey(savedTelegramApiKey)
+            telegramApiKeyChanged(savedTelegramApiKey)
+        }
+        
+        if let savedTelegramChatId = UserDefaults.standard.string(forKey: "telegramChatId") {
+            gui?.setTelegramChatId(savedTelegramChatId)
+            telegramChatIdChanged(savedTelegramChatId)
         }
     }
 
