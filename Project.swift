@@ -22,7 +22,7 @@ let project = Project(
                 .sdk(name: "c++", type: .library, status: .required),
                 .sdk(name: "OpenCL", type: .framework, status: .required),
                 .sdk(name: "Accelerate", type: .framework, status: .required)
-            ],
+            ]
         ),
     ]
 )
