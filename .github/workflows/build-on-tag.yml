@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-15
 
     steps:
       - name: Checkout code
@@ -32,8 +32,13 @@ jobs:
             -configuration Release \
             -derivedDataPath build
 
-      - name: Upload .app bundle as artifact
+      - name: Zip .app bundle
+        run: |
+          cd build/Build/Products/Release
+          zip -r MartyDetector.app.zip MartyDetector.app
+
+      - name: Upload zipped .app bundle
         uses: actions/upload-artifact@v4
         with:
-          name: MartyDetector
-          path: build/Build/Products/Release/MartyDetector.app
+          name: MartyDetector-App
+          path: build/Build/Products/Release/MartyDetector.app.zip
