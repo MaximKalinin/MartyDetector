@@ -11,6 +11,7 @@ let project = Project(
             deploymentTargets: .macOS("14.0"),
             infoPlist: .extendingDefault(
                 with: [
+                    "CFBundleShortVersionString": "0.0.1",
                     "NSCameraUsageDescription": "We need access to your camera to detect Marty",
                     "NSMicrophoneUsageDescription": "We need access to your microphone to record Marty",
                 ]
