@@ -35,10 +35,6 @@ class Main: NSObject, GuiDelegate, SourceCaptureDelegate {
     private var recordingFramesLeft: Int = 0
     private var recordingFilePath: String?
     private var recordingWriter: FileWriter?
-    private let secureStorage = {
-        let bundleId = Bundle.main.bundleIdentifier ?? "MartyDetector"
-        return SecureStorage(service: bundleId)
-    }()
     
     func setGui(_ gui: GuiProtocol) {
         self.gui = gui
@@ -222,12 +218,9 @@ class Main: NSObject, GuiDelegate, SourceCaptureDelegate {
     func telegramApiKeyChanged(_ apiKey: String) {
         print("api key changed")
 
-        do {
-            try secureStorage.set(key: "telegramApiKey", value: apiKey)
-            tryInitTelegramAPI()
-        } catch {
-            print("Failed to save api key: \(error)")
-        }
+        UserDefaults.standard.set(apiKey, forKey: "telegramApiKey")
+
+        tryInitTelegramAPI()
     }
 
     func telegramChatIdChanged(_ chatId: String) {
@@ -238,13 +231,10 @@ class Main: NSObject, GuiDelegate, SourceCaptureDelegate {
     }
 
     func tryInitTelegramAPI() {
-        do {
-            let apiKey = try secureStorage.get(key: "telegramApiKey")
-            if let telegramChatId = UserDefaults.standard.string(forKey: "telegramChatId") {
-                telegramAPI = TelegramAPI(token: apiKey, chatId: telegramChatId)
-            }
-        } catch {
-            print("Failed to load Telegram configuration: \(error)")
+        if let apiKey = UserDefaults.standard.string(forKey: "telegramApiKey"),
+            let telegramChatId = UserDefaults.standard.string(forKey: "telegramChatId") {
+            print("Telegram API initialized")
+            telegramAPI = TelegramAPI(token: apiKey, chatId: telegramChatId)
         }
     }
 
