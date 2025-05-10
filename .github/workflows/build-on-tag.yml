@@ -1,0 +1,39 @@
+name: Build on Tag
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+" # Only trigger on tags like v1.2.3
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Tuist
+        uses: jdx/mise-action@v2
+
+      - name: Download opencv2.xcframework
+        run: |
+          mkdir -p vendor/frameworks
+          curl -L -o vendor/frameworks/opencv2.xcframework.zip https://github.com/MaximKalinin/MartyDetector/releases/download/opencv-86a963cec9/opencv2.xcframework.zip
+          unzip vendor/frameworks/opencv2.xcframework.zip -d vendor/frameworks
+
+      - name: Generate Xcode project
+        run: tuist generate
+
+      - name: Build project
+        run: |
+          xcodebuild \
+            -scheme MartyDetector \
+            -configuration Release \
+            -derivedDataPath build
+
+      - name: Upload .app bundle as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MartyDetector
+          path: build/Build/Products/Release/MartyDetector.app
